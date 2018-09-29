@@ -8,13 +8,38 @@ const htmlRetrievalErrorText = 'I\'m sorry, I was unable to retrieve the schedul
 
 let skill
 
+const SessionEndedRequestHandler = {
+  canHandle (handlerInput) {
+    console.log('Inside SessionEndedRequestHandler')
+    return handlerInput.requestEnvelope.request.type === 'SessionEndedRequest'
+  },
+  handle (handlerInput) {
+    var speechText = 'OK'
+    var repromptText = 'OK'
+    console.log(speechText + ` Session ended with reason: ${JSON.stringify(handlerInput.requestEnvelope)}`)
+
+    return handlerInput.responseBuilder
+      .speak(speechText)
+      .reprompt(repromptText)
+      .withSimpleCard('Schedule day at Holmdel Schools', speechText)
+      .withShouldEndSession(true)
+      .getResponse()
+  }
+}
+
 const ErrorHandler = {
   canHandle (handlerInput) {
-    return true
+    const request = handlerInput.requestEnvelope.request
+    return request.type === ''
   },
-  async handle (handlerInput) {
+  async handle (handlerInput, error) {
     var speechText = 'Sorry, I can\'t understand the command. Please say again.'
     var repromptText = 'Sorry, I can\'t understand the command. Please say again.'
+
+    console.log('Error Handler ' + handlerInput.requestEnvelope.request.type)
+    console.log('True or False ' + (handlerInput.requestEnvelope.request.type === 'LaunchRequest'))
+    console.log(`Error handled: ${JSON.stringify(error)}`)
+    console.log(`Handler Input: ${JSON.stringify(handlerInput)}`)
 
     return handlerInput.responseBuilder
       .speak(speechText)
@@ -33,10 +58,11 @@ const HelpIntentHandler = {
       request.intent.name === 'AMAZON.HelpIntent')
   },
   async handle (handlerInput) {
-    var speechText = 'I currently support Indian Hill\'s 6 day schedule for fourth, fifth and sixth grade and '
+    var speechText = 'Welcome to the Holmdel School schedule skill. '
+    speechText += 'I currently support Indian Hill\'s 6 day schedule for fourth, fifth and sixth grade and '
     speechText += 'Satz School\'s 4 day schedule for seventh and eight grade. '
     speechText += 'You can ask me, what day is it, what day is it at Indian Hill School and what day is it at Satz School '
-    var repromptText = ''
+    var repromptText = speechText
 
     return handlerInput.responseBuilder
       .speak(speechText)
@@ -55,7 +81,7 @@ const CancelAndStopIntentHandler = {
   },
   async handle (handlerInput) {
     var speechText = 'OK'
-    var repromptText = ''
+    var repromptText = 'OK'
 
     return handlerInput.responseBuilder
       .speak(speechText)
@@ -69,8 +95,27 @@ const CancelAndStopIntentHandler = {
 const LaunchRequestHandler = {
   canHandle (handlerInput) {
     const request = handlerInput.requestEnvelope.request
-    return handlerInput.requestEnvelope.request.type === 'LaunchRequest' ||
-      (request.type === 'IntentRequest' &&
+    return request.type === 'LaunchRequest'
+  },
+  async handle (handlerInput) {
+    var speechText = 'Welcome to the Holmdel School schedule skill. '
+    speechText += 'I currently support Indian Hill\'s 6 day schedule for fourth, fifth and sixth grade and '
+    speechText += 'Satz School\'s 4 day schedule for seventh and eight grade. '
+    speechText += 'You can ask me, what day is it, what day is it at Indian Hill School and what day is it at Satz School.'
+    var repromptText = speechText
+
+    return handlerInput.responseBuilder
+      .speak(speechText)
+      .reprompt(repromptText)
+      .withSimpleCard('Schedule day at Holmdel Schools', speechText)
+      .getResponse()
+  }
+}
+
+const IntentRequestHandler = {
+  canHandle (handlerInput) {
+    const request = handlerInput.requestEnvelope.request
+    return (request.type === 'IntentRequest' &&
       request.intent.name === 'dayandschool')
   },
   async handle (handlerInput) {
@@ -80,8 +125,10 @@ const LaunchRequestHandler = {
     var speechText = ''
     var repromptText = ''
 
+    console.log(`Handler Input: ${JSON.stringify(handlerInput)}`)
+
     const intent = handlerInput.requestEnvelope.request.intent
-    console.log('intent.name2 = ' + intent.name)
+    console.log('intent = ' + intent)
 
     var slotValue = ''
     if (intent.name === 'dayandschool' &&
@@ -142,12 +189,14 @@ const LaunchRequestHandler = {
       slotValue = 'Holmdel Schools'
     }
 
+    repromptText = speechText
+
     return handlerInput.responseBuilder
       .speak(speechText)
       .reprompt(repromptText)
       .withSimpleCard('Schedule day at ' + slotValue, speechText)
       .addConfirmIntentDirective()
-      .withShouldEndSession(true)
+      .withShouldEndSession(false)
       .getResponse()
   }
 }
@@ -182,10 +231,11 @@ module.exports.alexaschoolschedule = async (event, context) => {
     skill = Alexa.SkillBuilders.custom()
       .addRequestHandlers(
         LaunchRequestHandler,
+        IntentRequestHandler,
         HelpIntentHandler,
         CancelAndStopIntentHandler,
-        ErrorHandler
-        // SessionEndedRequestHandler
+        ErrorHandler,
+        SessionEndedRequestHandler
       )
       .addErrorHandlers(ErrorHandler)
       .create()
